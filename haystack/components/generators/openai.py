@@ -242,11 +242,8 @@ class OpenAIGenerator:
         return {"replies": [message.text for message in completions], "meta": [message.meta for message in completions]}
 
     @staticmethod
-    def _create_message_from_chunks(
-        completion_chunk: ChatCompletionChunk, streamed_chunks: List[StreamingChunk]
-    ) -> ChatMessage:
-        """
-        Creates a single ChatMessage from the streamed chunks. Some data is retrieved from the completion chunk.
+    def _create_message_from_chunks(completion_chunk: ChatCompletionChunk, streamed_chunks: List[StreamingChunk]) -> ChatMessage:
+        """Creates a single ChatMessage from the streamed chunks. Some data is retrieved from the completion chunk.
         """
         complete_response = ChatMessage.from_assistant("".join([chunk.content for chunk in streamed_chunks]))
         finish_reason = streamed_chunks[-1].meta["finish_reason"]

@@ -8,16 +8,15 @@ from haystack import DeserializationError, Document, component, default_from_dic
 from haystack.document_stores.in_memory import InMemoryDocumentStore
 from haystack.document_stores.types import FilterPolicy
 
-
-@component
+# 此元类装饰器的作用
+# 实例化此类实例obj之前，首先执行元类中的方法 __call__ 方法；
+# 接下来会调用此类 __new__ 创建这个类的实例 obj 对象；但是没有 __init__ 初始化。
+# 之所以要在这个类 obj 实例 __init__ 之前有一个其元类的__call__，是为了增加一些 contextVal 变量控制操作；
+@component 
 class InMemoryBM25Retriever:
-    """
-    Retrieves documents that are most similar to the query using keyword-based algorithm.
-
-    Use this retriever with the InMemoryDocumentStore.
-
+    """ Retrieves documents that are most similar to the query using keyword-based algorithm. Use this retriever with the InMemoryDocumentStore.
+    before work: documents already in InMemoryDocumentStore
     ### Usage example
-
     ```python
     from haystack import Document
     from haystack.components.retrievers.in_memory import InMemoryBM25Retriever
@@ -28,33 +27,21 @@ class InMemoryBM25Retriever:
         Document(content="python ist eine beliebte Programmiersprache"),
     ]
 
-    doc_store = InMemoryDocumentStore()
+    doc_store = InMemoryDocumentStore() # save docs in memory
     doc_store.write_documents(docs)
     retriever = InMemoryBM25Retriever(doc_store)
-
     result = retriever.run(query="Programmiersprache")
-
     print(result["documents"])
     ```
     """
-
     def __init__(  # pylint: disable=too-many-positional-arguments
-        self,
-        document_store: InMemoryDocumentStore,
-        filters: Optional[Dict[str, Any]] = None,
-        top_k: int = 10,
-        scale_score: bool = False,
-        filter_policy: FilterPolicy = FilterPolicy.REPLACE,
+        self, document_store: InMemoryDocumentStore, filters: Optional[Dict[str, Any]] = None,
+        top_k: int = 10, scale_score: bool = False, filter_policy: FilterPolicy = FilterPolicy.REPLACE,
     ):
-        """
-        Create the InMemoryBM25Retriever component.
-
-        :param document_store:
-            An instance of InMemoryDocumentStore where the retriever should search for relevant documents.
-        :param filters:
-            A dictionary with filters to narrow down the retriever's search space in the document store.
-        :param top_k:
-            The maximum number of documents to retrieve.
+        """ Create the InMemoryBM25Retriever component.
+        :param document_store: An instance of InMemoryDocumentStore where the retriever should search for relevant documents.
+        :param filters: A dictionary with filters to narrow down the retriever's search space in the document store.
+        :param top_k: The maximum number of documents to retrieve.
         :param scale_score:
             When `True`, scales the score of retrieved documents to a range of 0 to 1, where 1 means extremely relevant.
             When `False`, uses raw similarity scores.
@@ -68,29 +55,22 @@ class InMemoryBM25Retriever:
         """
         if not isinstance(document_store, InMemoryDocumentStore):
             raise ValueError("document_store must be an instance of InMemoryDocumentStore")
-
         self.document_store = document_store
-
         if top_k <= 0:
             raise ValueError(f"top_k must be greater than 0. Currently, the top_k is {top_k}")
-
         self.filters = filters
         self.top_k = top_k
         self.scale_score = scale_score
         self.filter_policy = filter_policy
 
     def _get_telemetry_data(self) -> Dict[str, Any]:
-        """
-        Data that is sent to Posthog for usage analytics.
+        """ Data that is sent to Posthog for usage analytics.
         """
         return {"document_store": type(self.document_store).__name__}
 
     def to_dict(self) -> Dict[str, Any]:
-        """
-        Serializes the component to a dictionary.
-
-        :returns:
-            Dictionary with serialized data.
+        """ Serializes the component to a dictionary.
+        :returns: Dictionary with serialized data.
         """
         docstore = self.document_store.to_dict()
         return default_to_dict(
@@ -104,13 +84,9 @@ class InMemoryBM25Retriever:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "InMemoryBM25Retriever":
-        """
-        Deserializes the component from a dictionary.
-
-        :param data:
-            The dictionary to deserialize from.
-        :returns:
-            The deserialized component.
+        """ Deserializes the component from a dictionary.
+        :param data: The dictionary to deserialize from.
+        :returns: The deserialized component.
         """
         init_params = data.get("init_parameters", {})
         if "document_store" not in init_params:
@@ -119,9 +95,7 @@ class InMemoryBM25Retriever:
             raise DeserializationError("Missing 'type' in document store's serialization data")
         if "filter_policy" in init_params:
             init_params["filter_policy"] = FilterPolicy.from_str(init_params["filter_policy"])
-        data["init_parameters"]["document_store"] = InMemoryDocumentStore.from_dict(
-            data["init_parameters"]["document_store"]
-        )
+        data["init_parameters"]["document_store"] = InMemoryDocumentStore.from_dict(data["init_parameters"]["document_store"])
         return default_from_dict(cls, data)
 
     @component.output_types(documents=List[Document])
@@ -132,21 +106,15 @@ class InMemoryBM25Retriever:
         top_k: Optional[int] = None,
         scale_score: Optional[bool] = None,
     ):
-        """
-        Run the InMemoryBM25Retriever on the given input data.
-
-        :param query:
-            The query string for the Retriever.
-        :param filters:
-            A dictionary with filters to narrow down the search space when retrieving documents.
-        :param top_k:
-            The maximum number of documents to return.
+        """ Run the InMemoryBM25Retriever on the given input data.
+        :param query: The query string for the Retriever.
+        :param filters: A dictionary with filters to narrow down the search space when retrieving documents.
+        :param top_k: The maximum number of documents to return.
         :param scale_score:
             When `True`, scales the score of retrieved documents to a range of 0 to 1, where 1 means extremely relevant.
             When `False`, uses raw similarity scores.
         :returns:
             The retrieved documents.
-
         :raises ValueError:
             If the specified DocumentStore is not found or is not a InMemoryDocumentStore instance.
         """

@@ -90,9 +90,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class PreInitHookPayload:
-    """
-    Payload for the hook called before a component instance is initialized.
-
+    """ Payload for the hook called before a component instance is initialized.
     :param callback:
         Receives the following inputs: component class and init parameter keyword args.
     :param in_progress:
@@ -100,19 +98,16 @@ class PreInitHookPayload:
         Used to prevent it from being called recursively (if the component's constructor
         instantiates another component).
     """
-
     callback: Callable
     in_progress: bool = False
 
-
+# 别名
 _COMPONENT_PRE_INIT_HOOK: ContextVar[Optional[PreInitHookPayload]] = ContextVar("component_pre_init_hook", default=None)
 
 
 @contextmanager
 def _hook_component_init(callback: Callable):
-    """
-    Context manager to set a callback that will be invoked before a component's constructor is called.
-
+    """ Context manager to set a callback that will be invoked before a component's constructor is called.
     The callback receives the component class and the init parameters (as keyword arguments) and can modify the init
     parameters in place.
 
@@ -128,35 +123,22 @@ def _hook_component_init(callback: Callable):
 
 @runtime_checkable
 class Component(Protocol):
-    """
-    Note this is only used by type checking tools.
-
-    In order to implement the `Component` protocol, custom components need to
-    have a `run` method. The signature of the method and its return value
-    won't be checked, i.e. classes with the following methods:
-
+    """ Note this is only used by type checking tools.
+    In order to implement the `Component` protocol, custom components need to have a `run` method. 
+    The signature of the method and its return value won't be checked, i.e. classes with the following methods:
         def run(self, param: str) -> Dict[str, Any]:
             ...
-
     and
-
         def run(self, **kwargs):
             ...
 
-    will be both considered as respecting the protocol. This makes the type
-    checking much weaker, but we have other places where we ensure code is
-    dealing with actual Components.
-
-    The protocol is runtime checkable so it'll be possible to assert:
-
+    will be both considered as respecting the protocol. This makes the type checking much weaker, but we have other places where we ensure code is
+    dealing with actual Components. The protocol is runtime checkable so it'll be possible to assert:
         isinstance(MyComponent, Component)
     """
-
     # This is the most reliable way to define the protocol for the `run` method.
-    # Defining a method doesn't work as different Components will have different
-    # arguments. Even defining here a method with `**kwargs` doesn't work as the
-    # expected signature must be identical.
-    # This makes most Language Servers and type checkers happy and shows less errors.
+    # Defining a method doesn't work as different Components will have different arguments. Even defining here a method with `**kwargs` doesn't work as the
+    # expected signature must be identical. This makes most Language Servers and type checkers happy and shows less errors.
     # NOTE: This check can be removed when we drop Python 3.8 support.
     if sys.version_info >= (3, 9):
         run: Callable[..., Dict[str, Any]]
@@ -257,28 +239,26 @@ class ComponentMeta(type):
                 raise ComponentError("Parameters of 'run' and 'run_async' methods must be the same")
 
     def __call__(cls, *args, **kwargs):
-        """
-        This method is called when clients instantiate a Component and runs before __new__ and __init__.
+        """ This method is called when clients instantiate a Component and runs before __new__ and __init__.
         """
         # This will call __new__ then __init__, giving us back the Component instance
         pre_init_hook = _COMPONENT_PRE_INIT_HOOK.get()
         if pre_init_hook is None or pre_init_hook.in_progress:
-            instance = super().__call__(*args, **kwargs)
+            father = super()
+            instance = super().__call__(*args, **kwargs) # 调用父类的 __new__ 创建类实例 obj，并执行 self define cls 的 __init__ 初始化self define obj 实例
+            tmp = 'check ... ...'
         else:
             try:
                 pre_init_hook.in_progress = True
                 named_positional_args = ComponentMeta._positional_to_kwargs(cls, args)
-                assert (
-                    set(named_positional_args.keys()).intersection(kwargs.keys()) == set()
-                ), "positional and keyword arguments overlap"
+                assert (set(named_positional_args.keys()).intersection(kwargs.keys()) == set()), "positional and keyword arguments overlap"
                 kwargs.update(named_positional_args)
                 pre_init_hook.callback(cls, kwargs)
                 instance = super().__call__(**kwargs)
             finally:
                 pre_init_hook.in_progress = False
 
-        # Before returning, we have the chance to modify the newly created
-        # Component instance, so we take the chance and set up the I/O sockets
+        # Before returning, we have the chance to modify the newly created Component instance, so we take the chance and set up the I/O sockets
         has_async_run = hasattr(instance, "run_async")
         if has_async_run and not inspect.iscoroutinefunction(instance.run_async):
             raise ComponentError(f"Method 'run_async' of component '{cls.__name__}' must be a coroutine")
@@ -288,10 +268,8 @@ class ComponentMeta(type):
         ComponentMeta._parse_and_set_output_sockets(instance)
 
         # Since a Component can't be used in multiple Pipelines at the same time
-        # we need to know if it's already owned by a Pipeline when adding it to one.
-        # We use this flag to check that.
+        # we need to know if it's already owned by a Pipeline when adding it to one. We use this flag to check that.
         instance.__haystack_added_to_pipeline__ = None
-
         return instance
 
 
@@ -325,17 +303,13 @@ def _component_run_has_kwargs(component_cls: Type) -> bool:
 
 
 class _Component:
-    """
-    See module's docstring.
-
+    """ See module's docstring.
     Args:
         class_: the class that Canals should use as a component.
         serializable: whether to check, at init time, if the component can be saved with
         `save_pipelines()`.
-
     Returns:
         A class that can be recognized as a component.
-
     Raises:
         ComponentError: if the class provided has no `run()` method or otherwise doesn't respect the component contract.
     """
@@ -343,42 +317,26 @@ class _Component:
     def __init__(self):
         self.registry = {}
 
-    def set_input_type(
-        self,
-        instance,
-        name: str,
-        type: Any,  # noqa: A002
-        default: Any = _empty,
-    ):
-        """
-        Add a single input socket to the component instance.
-
-        Replaces any existing input socket with the same name.
-
+    def set_input_type(self,instance,name: str,type: Any, default: Any = _empty,): # noqa: A002
+        """ Add a single input socket to the component instance. Replaces any existing input socket with the same name.
         :param instance: Component instance where the input type will be added.
         :param name: name of the input socket.
         :param type: type of the input socket.
         :param default: default value of the input socket, defaults to _empty
         """
         if not _component_run_has_kwargs(instance.__class__):
-            raise ComponentError(
-                "Cannot set input types on a component that doesn't have a kwargs parameter in the 'run' method"
-            )
+            raise ComponentError("Cannot set input types on a component that doesn't have a kwargs parameter in the 'run' method")
 
         if not hasattr(instance, "__haystack_input__"):
             instance.__haystack_input__ = Sockets(instance, {}, InputSocket)
         instance.__haystack_input__[name] = InputSocket(name=name, type=type, default_value=default)
 
     def set_input_types(self, instance, **types):
-        """
-        Method that specifies the input types when 'kwargs' is passed to the run method.
-
+        """ Method that specifies the input types when 'kwargs' is passed to the run method.
         Use as:
-
         ```python
         @component
         class MyComponent:
-
             def __init__(self, value: int):
                 component.set_input_types(self, value_1=str, value_2=str)
                 ...
@@ -389,13 +347,10 @@ class _Component:
         ```
 
         Note that if the `run()` method also specifies some parameters, those will take precedence.
-
         For example:
-
         ```python
         @component
         class MyComponent:
-
             def __init__(self, value: int):
                 component.set_input_types(self, value_1=str, value_2=str)
                 ...
@@ -408,27 +363,20 @@ class _Component:
         would add a mandatory `value_0` parameters, make the `value_1`
         parameter optional with a default None, and keep the `value_2`
         parameter mandatory as specified in `set_input_types`.
-
         """
         if not _component_run_has_kwargs(instance.__class__):
-            raise ComponentError(
-                "Cannot set input types on a component that doesn't have a kwargs parameter in the 'run' method"
-            )
+            raise ComponentError("Cannot set input types on a component that doesn't have a kwargs parameter in the 'run' method")
 
         instance.__haystack_input__ = Sockets(
             instance, {name: InputSocket(name=name, type=type_) for name, type_ in types.items()}, InputSocket
         )
 
     def set_output_types(self, instance, **types):
-        """
-        Method that specifies the output types when the 'run' method is not decorated with 'component.output_types'.
-
+        """ Method that specifies the output types when the 'run' method is not decorated with 'component.output_types'.
         Use as:
-
         ```python
         @component
         class MyComponent:
-
             def __init__(self, value: int):
                 component.set_output_types(self, output_1=int, output_2=str)
                 ...
@@ -440,21 +388,15 @@ class _Component:
         """
         has_decorator = hasattr(instance.run, "_output_types_cache")
         if has_decorator:
-            raise ComponentError(
-                "Cannot call `set_output_types` on a component that already has "
-                "the 'output_types' decorator on its `run` method"
-            )
+            raise ComponentError("Cannot call `set_output_types` on a component that already has the 'output_types' decorator on its `run` method")
 
         instance.__haystack_output__ = Sockets(
             instance, {name: OutputSocket(name=name, type=type_) for name, type_ in types.items()}, OutputSocket
         )
 
     def output_types(self, **types):
-        """
-        Decorator factory that specifies the output types of a component.
-
+        """ Decorator factory that specifies the output types of a component.
         Use as:
-
         ```python
         @component
         class MyComponent:
@@ -465,9 +407,7 @@ class _Component:
         """
 
         def output_types_decorator(run_method):
-            """
-            Decorator that sets the output types of the decorated method.
-
+            """ Decorator that sets the output types of the decorated method.
             This happens at class creation time, and since we don't have the decorated
             class available here, we temporarily store the output types as an attribute of
             the decorated method. The ComponentMeta metaclass will use this data to create
@@ -487,8 +427,7 @@ class _Component:
         return output_types_decorator
 
     def _component(self, cls: Any):
-        """
-        Decorator validating the structure of the component and registering it in the components registry.
+        """ Decorator validating the structure of the component and registering it in the components registry.
         """
         logger.debug("Registering {component} as a component", component=cls)
 
@@ -497,9 +436,7 @@ class _Component:
             raise ComponentError(f"{cls.__name__} must have a 'run()' method. See the docs for more information.")
 
         def copy_class_namespace(namespace):
-            """
-            This is the callback that `typing.new_class` will use to populate the newly created class.
-
+            """ This is the callback that `typing.new_class` will use to populate the newly created class.
             Simply copy the whole namespace from the decorated class.
             """
             for key, val in dict(cls.__dict__).items():
@@ -527,10 +464,8 @@ class _Component:
             )
         self.registry[class_path] = cls
         logger.debug("Registered Component {component}", component=cls)
-
         # Override the __repr__ method with a default one
         cls.__repr__ = _component_repr
-
         return cls
 
     def __call__(self, cls: Optional[type] = None):

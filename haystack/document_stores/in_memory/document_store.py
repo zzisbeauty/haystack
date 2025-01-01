@@ -35,13 +35,11 @@ DOT_PRODUCT_SCALING_FACTOR = 100
 
 @dataclass
 class BM25DocumentStats:
-    """
-    A dataclass for managing document statistics for BM25 retrieval.
-
+    """ A dataclass for managing document statistics for BM25 retrieval.
+        用于管理用于 BM25检索的文档统计信息的数据类。
     :param freq_token: A Counter of token frequencies in the document.
     :param doc_len: Number of tokens in the document.
     """
-
     freq_token: Dict[str, int]
     doc_len: int
 
@@ -54,8 +52,7 @@ _FREQ_VOCAB_FOR_IDF_STORAGES: Dict[str, Counter] = {}
 
 
 class InMemoryDocumentStore:
-    """
-    Stores data in-memory. It's ephemeral and cannot be saved to disk.
+    """ Stores data in-memory. It's ephemeral and cannot be saved to disk.
     """
 
     def __init__(  # pylint: disable=too-many-positional-arguments
@@ -66,9 +63,7 @@ class InMemoryDocumentStore:
         embedding_similarity_function: Literal["dot_product", "cosine"] = "dot_product",
         index: Optional[str] = None,
     ):
-        """
-        Initializes the DocumentStore.
-
+        """ Initializes the DocumentStore.
         :param bm25_tokenization_regex: The regular expression used to tokenize the text for BM25 retrieval.
         :param bm25_algorithm: The BM25 algorithm to use. One of "BM25Okapi", "BM25L", or "BM25Plus".
         :param bm25_parameters: Parameters for BM25 implementation in a dictionary format.
@@ -107,8 +102,7 @@ class InMemoryDocumentStore:
 
     @property
     def storage(self) -> Dict[str, Document]:
-        """
-        Utility property that returns the storage used by this instance of InMemoryDocumentStore.
+        """ Utility property that returns the storage used by this instance of InMemoryDocumentStore.
         """
         return _STORAGES.get(self.index, {})
 
@@ -129,9 +123,7 @@ class InMemoryDocumentStore:
         return _FREQ_VOCAB_FOR_IDF_STORAGES.get(self.index, Counter())
 
     def _dispatch_bm25(self):
-        """
-        Select the correct BM25 algorithm based on user specification.
-
+        """ Select the correct BM25 algorithm based on user specification.
         :returns:
             The BM25 algorithm method.
         """
@@ -142,13 +134,12 @@ class InMemoryDocumentStore:
         return table[self.bm25_algorithm]
 
     def _tokenize_bm25(self, text: str) -> List[str]:
-        """
-        Tokenize text using the BM25 tokenization regex.
-
-        Here we explicitly create a tokenization method to encapsulate
-        all pre-processing logic used to create BM25 tokens, such as
-        lowercasing. This helps track the exact tokenization process
+        """ Tokenize text using the BM25 tokenization regex.Here we explicitly create a tokenization method to encapsulate
+        all pre-processing logic used to create BM25 tokens, such as lowercasing. This helps track the exact tokenization process
         used for BM25 scoring at any given time.
+
+        # 创建 BM25标记 文本的方法；都记录在这里
+        # 以便后续使用 BM25标记化正则表达式 标记所有文本信息
 
         :param text:
             The text to tokenize.
@@ -159,9 +150,7 @@ class InMemoryDocumentStore:
         return self.tokenizer(text)
 
     def _score_bm25l(self, query: str, documents: List[Document]) -> List[Tuple[Document, float]]:
-        """
-        Calculate BM25L scores for the given query and filtered documents.
-
+        """ Calculate BM25L scores for the given query and filtered documents.
         :param query:
             The query string.
         :param documents:
@@ -184,7 +173,7 @@ class InMemoryDocumentStore:
             return idf
 
         def _compute_tf(token: str, freq: Dict[str, int], doc_len: int) -> float:
-            """Per-token BM25L computation."""
+            """ Per-token BM25L computation. """
             freq_term = freq.get(token, 0.0)
             ctd = freq_term / (1 - b + b * doc_len / self._avg_doc_len)
             return (1.0 + k) * (ctd + delta) / (k + ctd + delta)
@@ -206,9 +195,7 @@ class InMemoryDocumentStore:
         return ret
 
     def _score_bm25okapi(self, query: str, documents: List[Document]) -> List[Tuple[Document, float]]:
-        """
-        Calculate BM25Okapi scores for the given query and filtered documents.
-
+        """ Calculate BM25Okapi scores for the given query and filtered documents.
         :param query:
             The query string.
         :param documents:
@@ -222,7 +209,7 @@ class InMemoryDocumentStore:
         epsilon = self.bm25_parameters.get("epsilon", 0.25)
 
         def _compute_idf(tokens: List[str]) -> Dict[str, float]:
-            """Per-token IDF computation for all tokens."""
+            """ Per-token IDF computation for all tokens. """
             sum_idf = 0.0
             neg_idf_tokens = []
 
@@ -242,7 +229,7 @@ class InMemoryDocumentStore:
             return {tok: idf.get(tok, 0.0) for tok in tokens}
 
         def _compute_tf(token: str, freq: Dict[str, int], doc_len: int) -> float:
-            """Per-token BM25L computation."""
+            """ Per-token BM25L computation. """
             freq_term = freq.get(token, 0.0)
             freq_norm = freq_term + k * (1 - b + b * doc_len / self._avg_doc_len)
             return freq_term * (1.0 + k) / freq_norm
@@ -264,9 +251,7 @@ class InMemoryDocumentStore:
         return ret
 
     def _score_bm25plus(self, query: str, documents: List[Document]) -> List[Tuple[Document, float]]:
-        """
-        Calculate BM25+ scores for the given query and filtered documents.
-
+        """ Calculate BM25+ scores for the given query and filtered documents.
         This implementation follows the document on BM25 Wikipedia page,
         which add 1 (smoothing factor) to document frequency when computing IDF.
 
@@ -292,7 +277,7 @@ class InMemoryDocumentStore:
             return idf
 
         def _compute_tf(token: str, freq: Dict[str, int], doc_len: float) -> float:
-            """Per-token normalized term frequency."""
+            """ Per-token normalized term frequency. """
             freq_term = freq.get(token, 0.0)
             freq_damp = k * (1 - b + b * doc_len / self._avg_doc_len)
             return freq_term * (1.0 + k) / (freq_term + freq_damp) + delta
@@ -314,9 +299,7 @@ class InMemoryDocumentStore:
         return ret
 
     def to_dict(self) -> Dict[str, Any]:
-        """
-        Serializes the component to a dictionary.
-
+        """ Serializes the component to a dictionary.
         :returns:
             Dictionary with serialized data.
         """
@@ -331,9 +314,7 @@ class InMemoryDocumentStore:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "InMemoryDocumentStore":
-        """
-        Deserializes the component from a dictionary.
-
+        """ Deserializes the component from a dictionary.
         :param data:
             The dictionary to deserialize from.
         :returns:
@@ -342,9 +323,7 @@ class InMemoryDocumentStore:
         return default_from_dict(cls, data)
 
     def save_to_disk(self, path: str) -> None:
-        """
-        Write the database and its' data to disk as a JSON file.
-
+        """ Write the database and its' data to disk as a JSON file.
         :param path: The path to the JSON file.
         """
         data: Dict[str, Any] = self.to_dict()
@@ -354,9 +333,7 @@ class InMemoryDocumentStore:
 
     @classmethod
     def load_from_disk(cls, path: str) -> "InMemoryDocumentStore":
-        """
-        Load the database and its' data from disk as a JSON file.
-
+        """ Load the database and its' data from disk as a JSON file.
         :param path: The path to the JSON file.
         :returns: The loaded InMemoryDocumentStore.
         """
@@ -378,15 +355,12 @@ class InMemoryDocumentStore:
             raise FileNotFoundError(f"File {path} not found.")
 
     def count_documents(self) -> int:
-        """
-        Returns the number of how many documents are present in the DocumentStore.
+        """ Returns the number of how many documents are present in the DocumentStore.
         """
         return len(self.storage.keys())
 
     def filter_documents(self, filters: Optional[Dict[str, Any]] = None) -> List[Document]:
-        """
-        Returns the documents that match the filters provided.
-
+        """ Returns the documents that match the filters provided.
         For a detailed specification of the filters, refer to the DocumentStore.filter_documents() protocol
         documentation.
 
@@ -403,14 +377,12 @@ class InMemoryDocumentStore:
         return list(self.storage.values())
 
     def write_documents(self, documents: List[Document], policy: DuplicatePolicy = DuplicatePolicy.NONE) -> int:
-        """
-        Refer to the DocumentStore.write_documents() protocol documentation.
-
-        If `policy` is set to `DuplicatePolicy.NONE` defaults to `DuplicatePolicy.FAIL`.
+        """ Refer to the DocumentStore.write_documents() protocol documentation.
+            If `policy` is set to `DuplicatePolicy.NONE` defaults to `DuplicatePolicy.FAIL`.
         """
         if (
-            not isinstance(documents, Iterable)
-            or isinstance(documents, str)
+            not isinstance(documents, Iterable) 
+            or isinstance(documents, str) 
             or any(not isinstance(doc, Document) for doc in documents)
         ):
             raise ValueError("Please provide a list of Documents.")
@@ -429,22 +401,19 @@ class InMemoryDocumentStore:
                     continue
 
             # Since the statistics are updated in an incremental manner,
-            # we need to explicitly remove the existing document to revert
-            # the statistics before updating them with the new document.
+            # we need to explicitly remove the existing document to revert the statistics before updating them with the new document.
             if document.id in self.storage.keys():
                 self.delete_documents([document.id])
 
             # This processing logic is extracted from the original bm25_retrieval method.
-            # Since we are creating index incrementally before the first retrieval,
-            # we need to determine what content to use for indexing here, not at query time.
+            # Since we are creating index incrementally before the first retrieval, we need to determine what content to use for indexing here, not at query time.
             if document.content is not None:
                 if document.dataframe is not None:
                     logger.warning(
-                        "Document '{document_id}' has both text and dataframe content. "
-                        "Using text content for retrieval and skipping dataframe content.",
+                        "Document '{document_id}' has both text and dataframe content. Using text content for retrieval and skipping dataframe content.",
                         document_id=document.id,
                     )
-                tokens = self._tokenize_bm25(document.content)
+                tokens = self._tokenize_bm25(document.content) # 基于 bm25 标记规则处理给定的 docx text
             elif document.dataframe is not None:
                 str_content = document.dataframe.astype(str)
                 csv_content = str_content.to_csv(index=False)
@@ -453,16 +422,14 @@ class InMemoryDocumentStore:
                 tokens = []
 
             self.storage[document.id] = document
-
+            # 先基于BM25算法统计 doc tokens 的相关信息，以便后续查询使用
             self._bm25_attr[document.id] = BM25DocumentStats(Counter(tokens), len(tokens))
             self._freq_vocab_for_idf.update(set(tokens))
             self._avg_doc_len = (len(tokens) + self._avg_doc_len * len(self._bm25_attr)) / (len(self._bm25_attr) + 1)
         return written_documents
 
     def delete_documents(self, document_ids: List[str]) -> None:
-        """
-        Deletes all documents with matching document_ids from the DocumentStore.
-
+        """ Deletes all documents with matching document_ids from the DocumentStore.
         :param document_ids: The object_ids to delete.
         """
         for doc_id in document_ids:
@@ -481,12 +448,8 @@ class InMemoryDocumentStore:
             except ZeroDivisionError:
                 self._avg_doc_len = 0
 
-    def bm25_retrieval(
-        self, query: str, filters: Optional[Dict[str, Any]] = None, top_k: int = 10, scale_score: bool = False
-    ) -> List[Document]:
-        """
-        Retrieves documents that are most relevant to the query using BM25 algorithm.
-
+    def bm25_retrieval(self, query: str, filters: Optional[Dict[str, Any]] = None, top_k: int = 10, scale_score: bool = False) -> List[Document]:
+        """ Retrieves documents that are most relevant to the query using BM25 algorithm.
         :param query: The query string.
         :param filters: A dictionary with filters to narrow down the search space.
         :param top_k: The number of top documents to retrieve. Default is 10.
@@ -505,10 +468,7 @@ class InMemoryDocumentStore:
         }
         if filters:
             if "operator" not in filters:
-                raise ValueError(
-                    "Invalid filter syntax. See https://docs.haystack.deepset.ai/docs/metadata-filtering "
-                    "for details."
-                )
+                raise ValueError("Invalid filter syntax. See https://docs.haystack.deepset.ai/docs/metadata-filtering for details.")
             filters = {"operator": "AND", "conditions": [content_type_filter, filters]}
         else:
             filters = content_type_filter
@@ -567,16 +527,10 @@ class InMemoryDocumentStore:
 
         documents_with_embeddings = [doc for doc in all_documents if doc.embedding is not None]
         if len(documents_with_embeddings) == 0:
-            logger.warning(
-                "No Documents found with embeddings. Returning empty list. "
-                "To generate embeddings, use a DocumentEmbedder."
-            )
+            logger.warning("No Documents found with embeddings. Returning empty list. To generate embeddings, use a DocumentEmbedder.")
             return []
         elif len(documents_with_embeddings) < len(all_documents):
-            logger.info(
-                "Skipping some Documents that don't have an embedding. "
-                "To generate embeddings, use a DocumentEmbedder."
-            )
+            logger.info("Skipping some Documents that don't have an embedding. To generate embeddings, use a DocumentEmbedder.")
 
         scores = self._compute_query_embedding_similarity_scores(
             embedding=query_embedding, documents=documents_with_embeddings, scale_score=scale_score
@@ -593,18 +547,13 @@ class InMemoryDocumentStore:
 
         return top_documents
 
-    def _compute_query_embedding_similarity_scores(
-        self, embedding: List[float], documents: List[Document], scale_score: bool = False
-    ) -> List[float]:
-        """
-        Computes the similarity scores between the query embedding and the embeddings of the documents.
-
+    def _compute_query_embedding_similarity_scores(self, embedding: List[float], documents: List[Document], scale_score: bool = False) -> List[float]:
+        """ Computes the similarity scores between the query embedding and the embeddings of the documents.
         :param embedding: Embedding of the query.
         :param documents: A list of Documents.
         :param scale_score: Whether to scale the scores of the Documents. Default is False.
         :returns: A list of scores.
         """
-
         query_embedding = np.array(embedding)
         if query_embedding.ndim == 1:
             query_embedding = np.expand_dims(a=query_embedding, axis=0)
